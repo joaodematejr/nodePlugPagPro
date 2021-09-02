@@ -26,7 +26,7 @@ function renderErr(codResponse) {
     case 0:
       break
     default:
-      console.log(`Verificar a tabela de erros ${response} ${urlPagSeguro}`)
+      console.log(`Verificar a tabela de erros ${codResponse} ${urlPagSeguro}`)
       break
   }
 }
@@ -40,18 +40,43 @@ async function initPlugPag(pagSeguroLib) {
   renderErr(response)
 }
 
-//GetVersionLib
+async function initPlugPagBluetooth(pagSeguroLib) {
+  console.log('Configurando conexao bluetooth... ')
+  let pgBluetooth = ffi.Library(pagSeguroLib, {
+    InitBTConnection: ['int', ['string']],
+  })
+  let response = await pgBluetooth.InitBTConnection(bluetooth_port)
+  renderErr(response)
+}
+
+//VERSÃO
 function getVersion(dllPagSeguro) {
   console.log('Recuperando Versão... ')
-  let pagSeguro = ffi.Library(dllPagSeguro, {
+  let pg = ffi.Library(dllPagSeguro, {
     GetVersionLib: ['int', []],
   })
-  return pagSeguro.GetVersionLib()
+  return pg.GetVersionLib()
+}
+
+//PAGAMENTO
+async function handlePayment(dllPagSeguro) {
+  console.log('Aguardando pagamento...')
+  let pagSeguro = ffi.Library(dllPagSeguro, {
+    SimplePaymentTransaction:  ['int', ['int', 'int', 'int', 'string', 'string', 'string']],
+  })
+  let transactionResult = {};
+  try {
+    let response = await pagSeguro.SimplePaymentTransaction(1, 1, 1, '100', 'UserRef', transactionResult)
+    console.log('62', response)
+  } catch (error) {
+    console.log('error', error)
+  }
 }
 
 function main() {
   pp = loadLibraries()
   initPlugPag(pp)
+  //initPlugPagBluetooth(pp)
   console.log('\n\n*** Pressione Ctrl+C para finalizar a aplicação ***')
   var leitor = function () {
     rl.question(
@@ -59,7 +84,7 @@ function main() {
       function (comando) {
         switch (comando) {
           case '1':
-            console.log('111111111111111111111')
+            handlePayment(pp)
             break
           case '2':
             console.log('222222222222222')
@@ -68,8 +93,8 @@ function main() {
             console.log('333333333333333')
             break
           case '4':
-            let response = getVersion(pp)
-            console.log(`Versão ${response}`)
+            let responseVersion = getVersion(pp)
+            console.log(`Versão ${responseVersion}`)
             break
           default:
             console.log('!!! Opção invalida !!!')
