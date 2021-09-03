@@ -1,6 +1,11 @@
 const path = require('path')
-const ffi = require('ffi-napi')
+
 var readline = require('readline')
+
+var StructType = require('ref-struct-napi')
+var ArrayType = require('ref-array-napi')
+
+const ffi = require('ffi-napi')
 
 function loadLibraries() {
   const dllPagSeguro = path.resolve(__dirname, '..', 'bin', 'PPPagSeguro.dll')
@@ -9,7 +14,7 @@ function loadLibraries() {
   return dllPagSeguro
 }
 
-const bluetooth_port = 'COM5'
+const bluetooth_port = 'COM3'
 const app_name = 'PlugPagNode'
 const app_version = '1.0.0'
 const encoding = 'UTF-8'
@@ -60,13 +65,36 @@ function getVersion(dllPagSeguro) {
 
 //PAGAMENTO
 async function handlePayment(dllPagSeguro) {
+  var transactionResult = StructType({
+    rawBuffer: ArrayType('char', 65543),
+    message: ArrayType('char', 1024),
+    transactionCode: ArrayType('char', 33),
+    date: ArrayType('char', 11),
+    time: ArrayType('char', 9),
+    hostNsu: ArrayType('char', 13),
+    cardBrand: ArrayType('char', 31),
+    bin: ArrayType('char', 7),
+    holder: ArrayType('char', 5),
+    userReference: ArrayType('char', 11),
+    terminalSerialNumber: ArrayType('char', 66),
+  })
+
   console.log('Aguardando pagamento...')
   let pagSeguro = ffi.Library(dllPagSeguro, {
-    SimplePaymentTransaction:  ['int', ['int', 'int', 'int', 'string', 'string', 'string']],
+    SimplePaymentTransaction: [
+      'int',
+      ['int', 'int', 'int', 'string', 'string', transactionResult],
+    ],
   })
-  let transactionResult = {};
   try {
-    let response = await pagSeguro.SimplePaymentTransaction(1, 1, 1, '100', 'UserRef', transactionResult)
+    let response = await pagSeguro.SimplePaymentTransaction(
+      1,
+      1,
+      1,
+      '100',
+      'UserRef',
+      transactionResult,
+    )
     console.log('62', response)
   } catch (error) {
     console.log('error', error)
